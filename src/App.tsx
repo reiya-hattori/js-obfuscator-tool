@@ -5,22 +5,13 @@ import {
   Textarea,
   Text,
   Button,
-  List,
-  ListItem,
-  ListIcon,
-  OrderedList,
-  UnorderedList,
-  Flex,
-  Spacer,
   Heading,
   Table,
   Thead,
   Tbody,
-  Tfoot,
   Tr,
   Th,
   Td,
-  TableCaption,
   TableContainer,
   Radio,
   RadioGroup,
@@ -29,6 +20,8 @@ import {
   AlertIcon,
   AlertTitle,
   AlertDescription,
+  Checkbox,
+  CheckboxGroup,
 } from '@chakra-ui/react';
 import './App.css';
 
@@ -36,6 +29,7 @@ type History = {
   input: string;
   output: string;
   method: string;
+  isProtected: boolean;
 };
 
 const App: React.FC = () => {
@@ -70,11 +64,11 @@ const App: React.FC = () => {
 
       setHistories((prevHistories) => {
         const newHistories = [
+          {input, output: processedCode, method: type, isProtected: false},
           ...prevHistories,
-          {input, output: processedCode, method: type},
         ];
-        if (newHistories.length > 5) {
-          newHistories.shift(); // remove the oldest item
+        if (newHistories.length > 10) {
+          newHistories.pop(); // remove the oldest item
         }
         return newHistories;
       });
@@ -89,18 +83,35 @@ const App: React.FC = () => {
 
   const handleClearHistories = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
-    localStorage.removeItem('_histories');
-    setHistories([]);
+    const newHistories = histories.filter((history) => history.isProtected);
+    setHistories(newHistories);
+    localStorage.setItem('_histories', JSON.stringify(newHistories));
   };
 
   const handleInputChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     setInput(event.target.value);
   };
 
-  const handleClear = (event: MouseEvent<HTMLButtonElement>) => {
+  const handleAllClear = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     setInput('');
     setOutput('');
+  };
+
+  const handleClear = (index: number) => {
+    if (histories[index].isProtected) {
+      return; // Do not delete if the item is protected
+    }
+    const newHistories = histories.filter((_, i) => i !== index);
+    setHistories(newHistories);
+    localStorage.setItem('_histories', JSON.stringify(newHistories));
+  };
+
+  const handleCheckboxChange = (index: number) => {
+    const newHistories = [...histories];
+    newHistories[index].isProtected = !newHistories[index].isProtected;
+    setHistories(newHistories);
+    localStorage.setItem('_histories', JSON.stringify(newHistories));
   };
 
   const handleConversionAlert = () => {
@@ -183,7 +194,7 @@ const App: React.FC = () => {
                     >
                       Conversion
                     </Button>
-                    <Button colorScheme='gray' onClick={handleClear}>
+                    <Button colorScheme='gray' onClick={handleAllClear}>
                       Clear
                     </Button>
                   </Td>
@@ -208,15 +219,16 @@ const App: React.FC = () => {
         </Box>
 
         <Box className='histories-area' textAlign='left'>
-          <Box pb='1.25vw'>
+          <Box
+            pb='1.25vw'
+            display='flex'
+            justifyContent='space-between'
+            alignItems='center'
+          >
             <Heading as='h2' size='md' mr='1.25vw' display='inline-block'>
               History
             </Heading>
-            <Button
-              colorScheme='gray'
-              display='inline-block'
-              onClick={handleClearHistories}
-            >
+            <Button colorScheme='red' mr='24px' onClick={handleClearHistories}>
               Clear All History
             </Button>
           </Box>
@@ -227,6 +239,8 @@ const App: React.FC = () => {
                   <Th>Index</Th>
                   <Th>Input Values</Th>
                   <Th>Obfuscator Values</Th>
+                  <Th>Keep</Th>
+                  <Th>Clear Value</Th>
                 </Tr>
               </Thead>
               <Tbody>
@@ -238,7 +252,7 @@ const App: React.FC = () => {
                     </Td>
                     <Td>
                       <Textarea
-                        defaultValue={history.input}
+                        value={history.input}
                         size='xs'
                         isReadOnly
                         onClick={handleTextareaClick}
@@ -246,11 +260,26 @@ const App: React.FC = () => {
                     </Td>
                     <Td>
                       <Textarea
-                        defaultValue={history.output}
+                        value={history.output}
                         size='xs'
                         isReadOnly
                         onClick={handleTextareaClick}
                       ></Textarea>
+                    </Td>
+                    <Td>
+                      <Checkbox
+                        isChecked={history.isProtected}
+                        onChange={() => handleCheckboxChange(index)}
+                      ></Checkbox>
+                    </Td>
+                    <Td textAlign='right'>
+                      <Button
+                        colorScheme={!history.isProtected ? 'red' : 'gray'}
+                        isDisabled={history.isProtected}
+                        onClick={() => handleClear(index)}
+                      >
+                        Clear
+                      </Button>
                     </Td>
                   </Tr>
                 ))}
